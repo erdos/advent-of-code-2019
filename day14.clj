@@ -40,26 +40,48 @@
         (recur (into out kk) (reduce disj others kk)))
       out)))
 
-(->
- (reduce (fn [m [k v]] (update m k conj v))
-         (sorted-map "FUEL" [])
-         (for [[k recipe] type->recipe
-               [j] (:from recipe)]
-           [j k]))
- (topsort)
- (->>
-  (reduce (fn [needed item]
-            (let [req-amt    (needed item)
-                  recipe     (or (type->recipe item) {:amount 1})
-                  multiplier (multi req-amt (:amount recipe))]
-              (merge-with +
-                          needed
-                          (into {} (for [[a b] (:from recipe)]
-                                     [a (* multiplier b)])))))
-          {"FUEL" 1}))
- (get "ORE")
- (->> (println "asdf")))
-
-;; 178154
+(defn cost-of-fuel [fuel]
+  (->
+   (reduce (fn [m [k v]] (update m k conj v))
+           (sorted-map "FUEL" [])
+           (for [[k recipe] type->recipe
+                 [j] (:from recipe)]
+             [j k]))
+   (topsort)
+   (->>
+    (reduce (fn [needed item]
+              (let [req-amt    (needed item)
+                    recipe     (or (type->recipe item) {:amount 1})
+                    multiplier (multi req-amt (:amount recipe))]
+                (merge-with +
+                            needed
+                            (into {} (for [[a b] (:from recipe)]
+                                       [a (* multiplier b)])))))
+            {"FUEL" fuel}))
+   (get "ORE")))
 
 (def cargo 1000000000000)
+
+;; last item where pred is still true
+(defn search
+  ([pred from]
+   (assert (pos? from))
+   (search pred from (first (drop-while pred (iterate #(* 2 %) from)))))
+  ([pred from to]
+   (assert (pred from))
+   (assert (false? (pred to)))
+   (loop [from from, to to]
+     (if (= from (dec to))
+       from
+       (let [half (quot (+ from to) 2)]
+         (if (pred half)
+           (recur half to)
+           (recur from half)))))))
+
+
+
+(println "Solution 1" (cost-of-fuel 1))
+
+(->>
+ (search #(< (cost-of-fuel %) cargo) 1)
+ (println "Second solution:"))
